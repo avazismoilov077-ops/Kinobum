@@ -55,11 +55,16 @@ def admin_codes_kb(movie_id: int, codes: list) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def admin_channels_kb(channels: list[str]) -> InlineKeyboardMarkup:
+def admin_channels_kb(channels: list) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    for i, ch in enumerate(channels):
+    for ch in channels:
+        status = "✅" if ch.is_active else "❌"
         builder.row(
-            InlineKeyboardButton(text=f"❌ {ch}", callback_data=f"remove_channel:{i}")
+            InlineKeyboardButton(
+                text=f"{status} {ch.title or ch.channel_id}",
+                callback_data=f"toggle_ch:{ch.id}"
+            ),
+            InlineKeyboardButton(text="🗑", callback_data=f"del_ch:{ch.id}")
         )
     builder.row(
         InlineKeyboardButton(text="➕ Kanal qo'shish", callback_data="add_channel")

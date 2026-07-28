@@ -94,3 +94,17 @@ class BroadcastLog(Base):
     success = Column(Integer, default=0)
     failed = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RequiredChannel(Base):
+    __tablename__ = "required_channels"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    channel_id = Column(String(100), unique=True, nullable=False)
+    title = Column(String(255), nullable=True)
+    invite_link = Column(String(500), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<RequiredChannel {self.channel_id} - {self.title}>"

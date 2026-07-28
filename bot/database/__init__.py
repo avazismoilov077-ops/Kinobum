@@ -1,7 +1,7 @@
 from .db import engine, async_session, Base, init_db
-from .models import User, Movie, MovieCode, Advertisement, BroadcastLog
+from .models import User, Movie, MovieCode, Advertisement, BroadcastLog, RequiredChannel
 
 __all__ = [
     "engine", "async_session", "Base", "init_db",
-    "User", "Movie", "MovieCode", "Advertisement", "BroadcastLog"
+    "User", "Movie", "MovieCode", "Advertisement", "BroadcastLog", "RequiredChannel"
 ]

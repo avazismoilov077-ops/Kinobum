@@ -3,30 +3,30 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import ADMIN_IDS, REQUIRED_CHANNELS
+from config import ADMIN_IDS
 from database import User
-from services import UserService
+from services import UserService, ChannelService
 from keyboards import main_menu_kb, admin_menu_kb, subscription_check_kb
 from utils.logger import logger
 
 router = Router()
 
 
-async def check_subscriptions(bot: Bot, user_id: int) -> tuple[bool, list[dict]]:
-    """Foydalanuvchi barcha kanallarga obuna bo'lganini tekshirish"""
-    if not REQUIRED_CHANNELS:
+async def check_subscriptions(bot: Bot, user_id: int, session: AsyncSession) -> tuple[bool, list[dict]]:
+    """Foydalanuvchi barcha kanallarga obuna bo'lganini tekshirish (DB dan)"""
+    channels = await ChannelService.get_all_active(session)
+    if not channels:
         return True, []
 
     not_subscribed = []
-    for channel in REQUIRED_CHANNELS:
+    for ch in channels:
         try:
-            member = await bot.get_chat_member(channel, user_id)
+            member = await bot.get_chat_member(ch.channel_id, user_id)
             if member.status in ("left", "kicked", "banned"):
-                chat = await bot.get_chat(channel)
-                invite_link = chat.invite_link or f"https://t.me/{channel.lstrip('@')}"
-                not_subscribed.append({"title": chat.title or channel, "url": invite_link})
+                link = ch.invite_link or f"https://t.me/{ch.channel_id.lstrip('@')}"
+                not_subscribed.append({"title": ch.title or ch.channel_id, "url": link})
         except Exception as e:
-            logger.warning(f"Kanal tekshirishda xato ({channel}): {e}")
+            logger.warning(f"Kanal tekshirishda xato ({ch.channel_id}): {e}")
 
     return len(not_subscribed) == 0, not_subscribed
 
@@ -42,7 +42,7 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot):
     )
 
     # Obuna tekshirish
-    is_subscribed, channels = await check_subscriptions(bot, user.id)
+    is_subscribed, channels = await check_subscriptions(bot, user.id, session)
 
     if not is_subscribed:
         await message.answer(
@@ -67,7 +67,7 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot):
 @router.callback_query(F.data == "check_subscription")
 async def check_sub_callback(callback: CallbackQuery, session: AsyncSession, bot: Bot):
     user = callback.from_user
-    is_subscribed, channels = await check_subscriptions(bot, user.id)
+    is_subscribed, channels = await check_subscriptions(bot, user.id, session)
 
     if not is_subscribed:
         await callback.answer("❌ Siz hali barcha kanallarga obuna bo'lmadingiz!", show_alert=True)

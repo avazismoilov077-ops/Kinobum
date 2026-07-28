@@ -4,13 +4,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import ADMIN_IDS, BACKUP_CHANNEL_ID, REQUIRED_CHANNELS
-from services import MovieService, UserService, AdService
+from config import ADMIN_IDS, BACKUP_CHANNEL_ID
+from services import MovieService, UserService, AdService, ChannelService
 from keyboards import (
     admin_menu_kb, main_menu_kb, admin_movie_manage_kb,
     admin_codes_kb, admin_channels_kb, confirm_kb, cancel_kb, ad_manage_kb
 )
 from states import AddMovieStates, AddAdStates, AddChannelStates
+
 from utils.logger import logger
 
 router = Router()
@@ -251,16 +252,92 @@ async def delete_code(callback: CallbackQuery, session: AsyncSession):
 # ─── Majburiy obuna ────────────────────────────────────────────────────────────
 
 @router.message(IsAdmin(), F.text == "🔑 Majburiy obuna")
-async def subscription_manage(message: Message):
-    channels = REQUIRED_CHANNELS
-    text = "📢 <b>Majburiy obuna kanallari:</b>\n\n"
+async def subscription_manage(message: Message, session: AsyncSession):
+    channels = await ChannelService.get_all(session)
+    text = "🔑 <b>Majburiy obuna kanallari:</b>\n\n"
     if channels:
         for ch in channels:
-            text += f"• {ch}\n"
+            status = "✅ Faol" if ch.is_active else "❌ Nofaol"
+            text += f"• {ch.title or ch.channel_id} — {status}\n"
     else:
-        text += "<i>Hozircha kanallar yo'q</i>"
-    text += "\n\n⚠️ Kanallarni o'zgartirish uchun .env faylida REQUIRED_CHANNELS ni yangilang."
-    await message.answer(text, parse_mode="HTML")
+        text += "<i>Hozircha kanallar yo'q</i>\n"
+    text += "\nKanal qo'shish/o'chirish:"
+    await message.answer(text, reply_markup=admin_channels_kb(channels), parse_mode="HTML")
+
+
+@router.callback_query(F.data == "add_channel")
+async def add_channel_start(callback: CallbackQuery, state: FSMContext):
+    if callback.from_user.id not in ADMIN_IDS:
+        return
+    await state.set_state(AddChannelStates.channel_id)
+    await callback.message.answer(
+        "📢 Kanal username yoki ID sini yuboring:\n\n"
+        "<b>Namuna:</b> <code>@kanalim</code> yoki <code>-1001234567890</code>\n\n"
+        "⚠️ Bot kanalning admini bo'lishi kerak!",
+        reply_markup=cancel_kb(),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.message(AddChannelStates.channel_id)
+async def add_channel_finish(message: Message, state: FSMContext, session: AsyncSession, bot: Bot):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    channel_input = message.text.strip()
+
+    # Kanal ma'lumotlarini olish
+    try:
+        chat = await bot.get_chat(channel_input)
+        channel_id = str(chat.id) if str(chat.id).startswith("-") else f"@{chat.username}" if chat.username else str(chat.id)
+        title = chat.title or channel_input
+        invite_link = chat.invite_link or (f"https://t.me/{chat.username}" if chat.username else None)
+
+        ch = await ChannelService.add(session, channel_id=channel_id, title=title, invite_link=invite_link)
+        await state.clear()
+        await message.answer(
+            f"✅ <b>{title}</b> kanali qo'shildi!\n"
+            f"ID: <code>{channel_id}</code>",
+            reply_markup=admin_menu_kb(),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await message.answer(
+            f"❌ Kanal topilmadi: {e}\n\n"
+            "Bot kanalning admini ekanligini tekshiring va qayta urinib ko'ring:",
+        )
+
+
+@router.callback_query(F.data.startswith("toggle_ch:"))
+async def toggle_channel(callback: CallbackQuery, session: AsyncSession):
+    if callback.from_user.id not in ADMIN_IDS:
+        return
+    ch_id = int(callback.data.split(":")[1])
+    ch = await ChannelService.toggle(session, ch_id)
+    status = "faol" if ch and ch.is_active else "nofaol"
+    await callback.answer(f"Kanal {status} qilindi!")
+    channels = await ChannelService.get_all(session)
+    await callback.message.edit_reply_markup(reply_markup=admin_channels_kb(channels))
+
+
+@router.callback_query(F.data.startswith("del_ch:"))
+async def delete_channel(callback: CallbackQuery, session: AsyncSession):
+    if callback.from_user.id not in ADMIN_IDS:
+        return
+    ch_id = int(callback.data.split(":")[1])
+    await ChannelService.remove(session, ch_id)
+    await callback.answer("✅ Kanal o'chirildi!")
+    channels = await ChannelService.get_all(session)
+    text = "🔑 <b>Majburiy obuna kanallari:</b>\n\n"
+    if channels:
+        for ch in channels:
+            status = "✅ Faol" if ch.is_active else "❌ Nofaol"
+            text += f"• {ch.title or ch.channel_id} — {status}\n"
+    else:
+        text += "<i>Hozircha kanallar yo'q</i>\n"
+    text += "\nKanal qo'shish/o'chirish:"
+    await callback.message.edit_text(text, reply_markup=admin_channels_kb(channels), parse_mode="HTML")
 
 
 # ─── Reklama ───────────────────────────────────────────────────────────────────
