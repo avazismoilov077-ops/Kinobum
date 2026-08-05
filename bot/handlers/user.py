@@ -16,7 +16,7 @@ async def send_movie(bot: Bot, chat_id: int, movie, session: AsyncSession):
     """Kinoni foydalanuvchiga yuborish"""
     caption = (
         f"🎬 <b>{movie.title}</b>\n\n"
-        f"🎭 Janr: {movie.genre or 'Noma\'lum'}\n\n"
+        f"🎭 Janr: {movie.genre or 'Noma`lum'}\n\n"
         f"📝 {movie.description or ''}\n\n"
         f"👁 Ko'rishlar: {movie.views}"
     )

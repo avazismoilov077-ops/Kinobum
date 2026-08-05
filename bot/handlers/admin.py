@@ -44,7 +44,7 @@ async def stats(message: Message, session: AsyncSession):
         f"📅 Bugungi yangilar: <b>{user_stats['today']}</b>\n\n"
         f"🎬 Jami kinolar: <b>{movie_stats['total_movies']}</b>\n"
         f"🔑 Jami kodlar: <b>{movie_stats['total_codes']}</b>\n\n"
-        f"🔥 <b>Top 5 kino:</b>\n{top_text or '  Hali yo\'q'}",
+        f"🔥 <b>Top 5 kino:</b>\n{top_text or '  Hali yoq'}",
         parse_mode="HTML"
     )
 
