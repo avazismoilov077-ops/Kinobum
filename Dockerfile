@@ -13,6 +13,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY bot/ .
 
+RUN mkdir -p data
+
 EXPOSE 10000
 
 CMD ["python", "bot.py"]

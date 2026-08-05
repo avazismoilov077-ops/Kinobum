@@ -14,7 +14,7 @@ REQUIRED_CHANNELS: list[str] = [
 ]
 
 # Database
-DATABASE_URL: str = os.getenv("SQLITE_URL", "sqlite+aiosqlite:///bot/data/kino_bot.db")
+DATABASE_URL: str = os.getenv("SQLITE_URL", "sqlite+aiosqlite:///data/kino_bot.db")
 
 # Flask
 FLASK_PORT: int = int(os.getenv("PORT", "8000"))
